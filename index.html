@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruby Springfield College CBT Portal</title>
+    <style>
+        :root {
+            --jamb-blue: #003366;
+            --jamb-gold: #FFD700;
+            --light-gray: #f4f4f4;
+            --success-green: #28a745;
+            --danger-red: #d9534f;
+            --tag-orange: #ff9800;
+            --review-correct: #d4edda;
+            --review-wrong: #f8d7da;
+        }
+
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: var(--light-gray); }
+
+        #login-page, #instructions-page, #result-page {
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, var(--jamb-blue) 0%, #001f3f 100%);
+        }
+
+        #exam-page, #instructions-page, #result-page { display: none; }
+
+        .card {
+            background: white; padding: 30px; border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 90%; max-width: 550px; text-align: center;
+        }
+
+        .chart-container { margin: 20px 0; text-align: left; }
+        .bar-wrap { background: #eee; border-radius: 5px; height: 12px; margin-bottom: 10px; overflow: hidden; position: relative; }
+        .bar-fill { height: 100%; background: var(--jamb-blue); transition: width 1s ease-in-out; }
+
+        .profile-img-large { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--jamb-gold); margin-bottom: 15px; object-fit: cover; background: #eee; }
+        .profile-img-header { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--jamb-gold); object-fit: cover; }
+
+        input[type="text"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; text-transform: uppercase; }
+        .btn-login { width: 100%; padding: 12px; background: var(--jamb-gold); color: var(--jamb-blue); border: none; font-weight: bold; cursor: pointer; border-radius: 5px; font-size: 1rem; }
+        
+        header { background-color: var(--jamb-blue); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--jamb-gold); }
+        .subject-bar { background: #fff; display: flex; justify-content: center; padding: 10px; gap: 5px; border-bottom: 1px solid #ddd; }
+        .sub-btn { padding: 8px 15px; border: 1px solid var(--jamb-blue); background: white; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        .sub-btn.active { background: var(--jamb-blue); color: white; }
+
+        .container { display: flex; flex-wrap: wrap; padding: 20px; gap: 20px; }
+        .main-exam-area { flex: 2; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .sidebar { flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        
+        .option-item { display: block; padding: 12px; margin: 8px 0; background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; }
+        .option-item.correct-ans { background-color: var(--review-correct) !important; border-color: var(--success-green); font-weight: bold; }
+        .option-item.wrong-ans { background-color: var(--review-wrong) !important; border-color: var(--danger-red); }
+
+        .explanation-box { display: none; margin-top: 15px; padding: 15px; background: #e7f3ff; border-left: 5px solid var(--jamb-blue); border-radius: 4px; text-align: left; }
+
+        .question-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .grid-num { padding: 10px; background: #ddd; border-radius: 4px; text-align: center; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .grid-num.answered { background: var(--success-green); color: white; }
+        .grid-num.tagged { background: var(--tag-orange) !important; color: white; }
+        .grid-num.active { border: 2px solid var(--jamb-blue); transform: scale(1.1); }
+        
+        .controls { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px; }
+        .nav-btn { padding: 12px; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; flex: 1; }
+        .btn-prev { background: #666; }
+        .btn-tag { background: var(--tag-orange); }
+        .btn-next { background: var(--jamb-blue); }
+        .btn-submit { background: var(--danger-red); flex: none; width: 120px; }
+
+        #calc-box { display:none; margin-top:15px; background:#333; padding:15px; border-radius:8px; }
+        #calc-display { width:100%; height:40px; text-align:right; margin-bottom:10px; background: #fff; border: none; border-radius: 4px; padding: 5px; box-sizing: border-box; font-size: 1.2rem; }
+        .calc-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:5px; }
+        .calc-grid button { padding:10px; border-radius: 4px; background: #eee; border:none; font-weight:bold; cursor: pointer; }
+
+        #summary-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background: var(--jamb-blue); color: white; }
+
+        /* PRINT LOGIC */
+        @media print {
+            body * { visibility: hidden; }
+            #result-page, #result-page * { visibility: visible; }
+            #result-page { position: absolute; left: 0; top: 0; width: 100%; background: white; display: flex !important; }
+            .card { box-shadow: none; border: 2px solid #000; padding: 20px; max-width: 100%; width: 100%; }
+            .no-print { display: none !important; }
+            .bar-wrap { border: 1px solid #000; -webkit-print-color-adjust: exact; }
+            .bar-fill { background-color: var(--jamb-blue) !important; -webkit-print-color-adjust: exact; }
+        }
+
+        @media (max-width: 768px) { .container { flex-direction: column; } }
+    </style>
+</head>
+<body>
+
+<div id="login-page">
+    <div class="card">
+        <h2 style="color: var(--jamb-blue);">Ruby Springfield College</h2>
+        <p>CBT Examination Portal</p>
+        <input type="text" id="cand-name" placeholder="ENTER FULL NAME"> 
+        <input type="text" id="cand-reg" placeholder="ENTER REG NUMBER">
+        <div id="error-msg" style="color: red; display: none; margin-bottom: 10px;">Invalid Admin Credentials</div>
+        <button class="btn-login" onclick="handleLogin()">LOGIN</button>
+    </div>
+</div>
+
+<div id="instructions-page">
+    <div class="card" style="text-align: left;">
+        <div style="text-align: center;">
+            <img src="https://www.w3schools.com/howto/img_avatar.png" class="profile-img-large">
+            <h3 id="instr-name">CANDIDATE</h3>
+            <p id="instr-reg" style="color: #666;"></p>
+        </div>
+        <hr>
+        <h4>Exam Rules & Shortcuts:</h4>
+        <ul style="font-size: 0.85rem; line-height: 1.6;">
+            <li>Select options using <b>A, B, C, D</b> keys.</li>
+            <li>Questions are <b>shuffled</b> and <b>auto-saved</b>.</li>
+            <li><b>Security:</b> Leaving this tab will trigger a warning.</li>
+        </ul>
+        <button class="btn-login" onclick="startExamNow()" style="background: var(--success-green); color: white;">START EXAM</button>
+    </div>
+</div>
+
+<div id="exam-page">
+    <header>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="https://www.w3schools.com/howto/img_avatar.png" class="profile-img-header">
+            <div><strong id="display-name"></strong><br><small id="display-reg"></small></div>
+        </div>
+        <div id="timer" style="font-size: 1.5rem; font-weight: bold; background: #fff; color: var(--jamb-blue); padding: 5px 15px; border-radius: 5px;">02:00:00</div>
+    </header>
+    <div class="subject-bar" id="sub-bar"></div>
+    <div class="container">
+        <div class="main-exam-area">
+            <div id="review-tag" style="display:none; color:var(--danger-red); font-weight:bold; text-align:center; margin-bottom:10px;">REVIEW MODE</div>
+            <div id="q-text" style="font-size: 1.2rem; font-weight: 500; margin-bottom: 25px; min-height: 60px;"></div>
+            <div id="options-container"></div>
+            
+            <div id="explanation-box" class="explanation-box">
+                <strong>Correct Answer Logic:</strong>
+                <p id="explanation-text" style="margin-top:5px;"></p>
+            </div>
+
+            <div class="controls">
+                <button class="nav-btn btn-prev" onclick="changeQuestion(-1)">PREVIOUS</button>
+                <button class="nav-btn btn-tag" id="tag-btn-ui" onclick="toggleTag()">TAG</button>
+                <button class="nav-btn btn-next" onclick="changeQuestion(1)">NEXT</button>
+                <button class="nav-btn btn-submit" id="submit-btn-ui" onclick="finishExam()">SUBMIT</button>
+            </div>
+        </div>
+        <div class="sidebar">
+            <h4 style="margin-top:0;">Questions</h4>
+            <div class="question-grid" id="q-grid"></div>
+            <button class="nav-btn btn-next" style="width:100%; margin-top:20px;" onclick="toggleCalc()">CALCULATOR</button>
+            <div id="calc-box">
+                <input type="text" id="calc-display" readonly>
+                <div class="calc-grid">
+                    <button onclick="calcPress('7')">7</button><button onclick="calcPress('8')">8</button><button onclick="calcPress('9')">9</button><button onclick="calcPress('/')" style="background:#ffd700;">÷</button>
+                    <button onclick="calcPress('4')">4</button><button onclick="calcPress('5')">5</button><button onclick="calcPress('6')">6</button><button onclick="calcPress('*')" style="background:#ffd700;">×</button>
+                    <button onclick="calcPress('1')">1</button><button onclick="calcPress('2')">2</button><button onclick="calcPress('3')">3</button><button onclick="calcPress('-')" style="background:#ffd700;">-</button>
+                    <button onclick="calcPress('0')">0</button><button onclick="calcPress('.')">.</button><button onclick="calcClear()" style="background:#ff4d4d; color:white;">C</button><button onclick="calcPress('+')" style="background:#ffd700;">+</button>
+                    <button onclick="calcResult()" style="grid-column: span 4; background:var(--success-green); color:white;">=</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="result-page">
+    <div class="card">
+        <h2 style="color: var(--jamb-blue);">RUBY SPRINGFIELD COLLEGE</h2>
+        <p>Official Examination Result Slip</p>
+        <img src="https://www.w3schools.com/howto/img_avatar.png" class="profile-img-large">
+        <h3 id="result-name-display"></h3>
+        <p id="result-reg-display" style="color: #666;"></p>
+        
+        <table>
+            <thead><tr><th>Subject</th><th>Performance</th><th>Score</th></tr></thead>
+            <tbody id="result-body"></tbody>
+        </table>
+
+        <div style="background: #f1f1f1; padding: 15px; border-radius: 8px;">
+            <span style="font-size: 0.9rem;">AGGREGATE TOTAL</span>
+            <h1 id="final-total" style="font-size: 3.5rem; color: var(--success-green); margin: 0;">0</h1>
+        </div>
+
+        <div class="no-print" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;">
+            <button class="btn-login" onclick="startReview()">REVIEW ANSWERS</button>
+            <button class="btn-login" style="background:var(--jamb-blue); color:white;" onclick="printResult()">PRINT SLIP</button>
+            <button class="btn-login" style="background:#666; color:white; grid-column: span 2;" onclick="logout()">LOGOUT</button>
+        </div>
+    </div>
+</div>
+
+<div id="summary-modal">
+    <div class="card" style="max-width: 400px;">
+        <h2>Ready to Submit?</h2>
+        <table id="summary-table"><tbody id="summary-body"></tbody></table>
+        <div style="display: flex; gap: 10px;">
+            <button class="nav-btn btn-prev" onclick="closeSummary()">BACK</button>
+            <button class="nav-btn btn-submit" onclick="finalSubmit()">FINISH</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ADMIN_NAME = "ADAMS ADMIN";
+    const ADMIN_REG = "adamscbt2026";
+    let allSubjectsData = {}, currentSubject = "", questions = [], currentIndex = 0;
+    let userAnswers = {}, taggedQuestions = {}, timeLeft = 120 * 60, isReviewMode = false;
+    let examStarted = false;
+
+    window.onblur = function() {
+        if (examStarted && !isReviewMode) alert("WARNING: Tab switching detected!");
+    };
+
+    function saveProgress() {
+        if (!isReviewMode && examStarted) {
+            localStorage.setItem('cbt_progress', JSON.stringify({ answers: userAnswers, tags: taggedQuestions, time: timeLeft }));
+        }
+    }
+
+    async function handleLogin() {
+        const inputName = document.getElementById('cand-name').value.trim().toUpperCase();
+        const inputReg = document.getElementById('cand-reg').value.trim().toLowerCase();
+        if (inputName === ADMIN_NAME && inputReg === ADMIN_REG) {
+            await loadJsonData();
+            document.getElementById('instr-name').innerText = inputName;
+            document.getElementById('instr-reg').innerText = inputReg.toUpperCase();
+            document.getElementById('display-name').innerText = inputName;
+            document.getElementById('display-reg').innerText = inputReg.toUpperCase();
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('instructions-page').style.display = 'flex';
+        } else { document.getElementById('error-msg').style.display = 'block'; }
+    }
+
+    async function loadJsonData() {
+        try {
+            const response = await fetch('questions.json');
+            const data = await response.json();
+            const saved = JSON.parse(localStorage.getItem('cbt_progress'));
+            
+            Object.keys(data).forEach(sub => {
+                allSubjectsData[sub] = data[sub];
+                userAnswers[sub] = (saved && saved.answers[sub]) ? saved.answers[sub] : new Array(data[sub].length).fill(null);
+                taggedQuestions[sub] = (saved && saved.tags[sub]) ? saved.tags[sub] : [];
+            });
+            if (saved) timeLeft = saved.time;
+
+            const subBar = document.getElementById('sub-bar');
+            subBar.innerHTML = '';
+            Object.keys(allSubjectsData).forEach(sub => {
+                const btn = document.createElement('button');
+                btn.className = 'sub-btn'; btn.innerText = sub;
+                btn.onclick = () => switchSubject(sub);
+                subBar.appendChild(btn);
+            });
+            switchSubject(Object.keys(allSubjectsData)[0]);
+        } catch (e) { alert("questions.json error!"); }
+    }
+
+    function switchSubject(sn) {
+        currentSubject = sn; questions = allSubjectsData[sn]; currentIndex = 0;
+        document.querySelectorAll('.sub-btn').forEach(b => b.classList.toggle('active', b.innerText === sn));
+        loadQuestion(); renderGrid();
+    }
+
+    function loadQuestion() {
+        const q = questions[currentIndex];
+        const cur = userAnswers[currentSubject][currentIndex];
+        document.getElementById('q-text').innerText = `Q${currentIndex + 1}. ${q.q}`;
+        document.getElementById('options-container').innerHTML = ['A','B','C','D'].map(opt => {
+            let style = (isReviewMode && opt === q.correct) ? "correct-ans" : (isReviewMode && cur === opt && cur !== q.correct) ? "wrong-ans" : "";
+            return `<label class="option-item ${style}"><input type="radio" name="opt" value="${opt}" onchange="saveAnswer('${opt}')" ${cur === opt ? 'checked' : ''} ${isReviewMode ? 'disabled' : ''}> ${opt}. ${q[opt.toLowerCase()]}</label>`;
+        }).join('');
+        document.getElementById('explanation-box').style.display = isReviewMode ? 'block' : 'none';
+        document.getElementById('explanation-text').innerText = q.explanation || "N/A";
+    }
+
+    function saveAnswer(v) { userAnswers[currentSubject][currentIndex] = v; renderGrid(); saveProgress(); }
+    function toggleTag() { 
+        const tags = taggedQuestions[currentSubject];
+        const idx = tags.indexOf(currentIndex);
+        if (idx > -1) tags.splice(idx, 1); else tags.push(currentIndex);
+        renderGrid(); saveProgress();
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('q-grid');
+        grid.innerHTML = '';
+        questions.forEach((_, i) => {
+            const d = document.createElement('div');
+            d.className = `grid-num ${userAnswers[currentSubject][i] ? 'answered' : ''} ${taggedQuestions[currentSubject].includes(i) ? 'tagged' : ''} ${i === currentIndex ? 'active' : ''}`;
+            d.innerText = i + 1;
+            d.onclick = () => { currentIndex = i; loadQuestion(); renderGrid(); };
+            grid.appendChild(d);
+        });
+    }
+
+    function changeQuestion(s) { let n = currentIndex + s; if(n >= 0 && n < questions.length) { currentIndex = n; loadQuestion(); renderGrid(); } }
+
+    function startTimer() {
+        setInterval(() => {
+            if (isReviewMode || !examStarted) return;
+            if (timeLeft <= 0) finalSubmit();
+            let h = Math.floor(timeLeft / 3600), m = Math.floor((timeLeft % 3600) / 60), s = timeLeft % 60;
+            document.getElementById('timer').innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            timeLeft--;
+        }, 1000);
+    }
+
+    function finishExam() {
+        const b = document.getElementById('summary-body');
+        b.innerHTML = Object.keys(allSubjectsData).map(s => `<tr><td>${s}</td><td>${userAnswers[s].filter(a => a).length} / ${allSubjectsData[s].length} Answered</td></tr>`).join('');
+        document.getElementById('summary-modal').style.display = 'flex';
+    }
+
+    function finalSubmit() {
+        examStarted = false; localStorage.removeItem('cbt_progress');
+        document.getElementById('summary-modal').style.display = 'none';
+        document.getElementById('exam-page').style.display = 'none';
+        document.getElementById('result-page').style.display = 'flex';
+        let total = 0;
+        const body = document.getElementById('result-body');
+        body.innerHTML = '';
+        for (let s in allSubjectsData) {
+            let score = 0;
+            allSubjectsData[s].forEach((q, i) => { if(userAnswers[s][i] === q.correct) score++; });
+            total += score;
+            let percent = (score / allSubjectsData[s].length) * 100;
+            body.innerHTML += `<tr><td>${s}</td><td><div class="bar-wrap"><div class="bar-fill" style="width:${percent}%"></div></div></td><td>${score} / ${allSubjectsData[s].length}</td></tr>`;
+        }
+        document.getElementById('final-total').innerText = total;
+        document.getElementById('result-name-display').innerText = document.getElementById('cand-name').value;
+        document.getElementById('result-reg-display').innerText = "STUDENT ID: " + document.getElementById('cand-reg').value.toUpperCase();
+    }
+
+    function printResult() { window.print(); }
+
+    function startReview() { isReviewMode = true; document.getElementById('result-page').style.display = 'none'; document.getElementById('exam-page').style.display = 'block'; document.getElementById('review-tag').style.display = 'block'; document.getElementById('tag-btn-ui').style.display = 'none'; document.getElementById('submit-btn-ui').style.display = 'none'; switchSubject(Object.keys(allSubjectsData)[0]); }
+    function startExamNow() { examStarted = true; document.getElementById('instructions-page').style.display = 'none'; document.getElementById('exam-page').style.display = 'block'; startTimer(); }
+    function logout() { localStorage.removeItem('cbt_progress'); location.reload(); }
+    function toggleCalc() { const b = document.getElementById('calc-box'); b.style.display = b.style.display === 'none' ? 'block' : 'none'; }
+    function calcPress(v) { document.getElementById('calc-display').value += v; }
+    function calcClear() { document.getElementById('calc-display').value = ''; }
+    function calcResult() { try { document.getElementById('calc-display').value = eval(document.getElementById('calc-display').value); } catch { document.getElementById('calc-display').value = 'Error'; } }
+    function closeSummary() { document.getElementById('summary-modal').style.display = 'none'; }
+
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'n') changeQuestion(1);
+        if (k === 'p') changeQuestion(-1);
+        if (['a','b','c','d'].includes(k)) saveAnswer(k.toUpperCase());
+    });
+</script>
+</body>
+</html>
